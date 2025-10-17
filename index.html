@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="zh-TW">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>翻翻樂記憶遊戲</title>
+  <style>
+        body {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        .game-container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .game-title {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .game-stats {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.9);
+            padding: 15px 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .card {
+            aspect-ratio: 1;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        .card.flipped {
+            background: linear-gradient(145deg, #4facfe, #00f2fe);
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            background: linear-gradient(145deg, #a8edea, #fed6e3);
+            cursor: default;
+            transform: scale(0.95);
+        }
+
+        .card.hint {
+            background: linear-gradient(145deg, #ffeaa7, #fdcb6e);
+            animation: hintPulse 1s ease-in-out;
+        }
+
+        .card.flip-animation {
+            animation: flipCard 0.6s ease-in-out;
+        }
+
+        .card.match-animation {
+            animation: matchSuccess 0.8s ease-in-out;
+        }
+
+        .card.wrong-animation {
+            animation: wrongMatch 0.5s ease-in-out;
+        }
+
+        @keyframes hintPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); box-shadow: 0 8px 25px rgba(253, 203, 110, 0.6); }
+        }
+
+        @keyframes flipCard {
+            0% { transform: rotateY(0deg); }
+            50% { transform: rotateY(90deg); }
+            100% { transform: rotateY(180deg); }
+        }
+
+        @keyframes matchSuccess {
+            0% { transform: scale(1); }
+            25% { transform: scale(1.1); box-shadow: 0 10px 30px rgba(168, 237, 234, 0.8); }
+            50% { transform: scale(1.05); }
+            75% { transform: scale(1.1); }
+            100% { transform: scale(0.95); }
+        }
+
+        @keyframes wrongMatch {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); background: linear-gradient(145deg, #ff7675, #fd79a8); }
+            75% { transform: translateX(5px); background: linear-gradient(145deg, #ff7675, #fd79a8); }
+        }
+
+        .victory-celebration {
+            animation: celebrate 2s ease-in-out;
+        }
+
+        @keyframes celebrate {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            25% { transform: translate(-50%, -50%) scale(1.05) rotate(2deg); }
+            50% { transform: translate(-50%, -50%) scale(1.1) rotate(-2deg); }
+            75% { transform: translate(-50%, -50%) scale(1.05) rotate(1deg); }
+        }
+
+        .card-content {
+            font-size: 3rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card.flipped .card-content,
+        .card.matched .card-content {
+            opacity: 1;
+        }
+
+        .card-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #666;
+            transition: opacity 0.3s ease;
+        }
+
+        .card.flipped .card-back,
+        .card.matched .card-back {
+            opacity: 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(145deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(238, 90, 82, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(145deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(68, 160, 141, 0.4);
+        }
+
+        .btn-hint {
+            background: linear-gradient(145deg, #fdcb6e, #e17055);
+            color: white;
+        }
+
+        .btn-hint:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(225, 112, 85, 0.4);
+        }
+
+        .btn-hint:disabled {
+            background: linear-gradient(145deg, #ddd, #ccc);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .btn-leaderboard {
+            background: linear-gradient(145deg, #a29bfe, #6c5ce7);
+            color: white;
+        }
+
+        .btn-leaderboard:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+        }
+
+        .victory-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, #ffeaa7, #fdcb6e);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .victory-message h2 {
+            color: #2d3436;
+            margin-bottom: 15px;
+            font-size: 2rem;
+        }
+
+        .victory-message p {
+            color: #636e72;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .leaderboard-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .leaderboard-content {
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .leaderboard-content h2 {
+            color: #2d3436;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 2rem;
+        }
+
+        .leaderboard-list {
+            margin-bottom: 20px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: linear-gradient(145deg, #f1f2f6, #ddd);
+            border-radius: 10px;
+            transition: transform 0.2s ease;
+        }
+
+        .leaderboard-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .leaderboard-item.top-3 {
+            background: linear-gradient(145deg, #ffeaa7, #fdcb6e);
+            font-weight: bold;
+        }
+
+        .leaderboard-rank {
+            font-size: 1.2rem;
+            font-weight: bold;
+            min-width: 40px;
+        }
+
+        .leaderboard-name {
+            flex: 1;
+            text-align: left;
+            margin-left: 15px;
+        }
+
+        .leaderboard-score {
+            font-size: 0.9rem;
+            color: #636e72;
+        }
+
+        .empty-leaderboard {
+            text-align: center;
+            color: #636e72;
+            font-style: italic;
+            padding: 40px 20px;
+        }
+
+        @media (max-width: 600px) {
+            .game-board {
+                gap: 10px;
+                padding: 15px;
+            }
+            
+            .card-content {
+                font-size: 2.5rem;
+            }
+            
+            .game-title {
+                font-size: 2rem;
+            }
+        }
+    </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
+ </head>
+ <body>
+  <div class="game-container">
+   <h1 class="game-title">🧠 翻翻樂記憶遊戲</h1>
+   <div class="game-stats">
+    <div class="stat-item">
+     <div class="stat-label">
+      翻牌次數
+     </div>
+     <div class="stat-value" id="moves">
+      0
+     </div>
+    </div>
+    <div class="stat-item">
+     <div class="stat-label">
+      配對成功
+     </div>
+     <div class="stat-value" id="matches">
+      0
+     </div>
+    </div>
+    <div class="stat-item">
+     <div class="stat-label">
+      遊戲時間
+     </div>
+     <div class="stat-value" id="timer">
+      00:00
+     </div>
+    </div>
+   </div>
+   <div class="game-board" id="gameBoard"></div>
+   <div class="controls"><button class="btn btn-primary" onclick="startNewGame()">🎮 新遊戲</button> <button class="btn btn-secondary" onclick="resetGame()">🔄 重新開始</button> <button class="btn btn-hint" onclick="useHint()" id="hintBtn">💡 提示 (3)</button> <button class="btn btn-leaderboard" onclick="showLeaderboard()">🏆 排行榜</button>
+   </div>
+   <div id="connectionStatus" style="margin-top: 15px; text-align: center; font-size: 0.9rem; color: rgba(255,255,255,0.8);"><span id="statusText">檢查連接狀態中...</span>
+   </div>
+   <div style="margin-top: 10px; text-align: center; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
+    <details style="cursor: pointer;"><summary>Firebase 設定說明</summary>
+     <div style="margin-top: 10px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; text-align: left;">
+      <p><strong>如何設定 Firebase：</strong></p>
+      <ol style="margin: 10px 0; padding-left: 20px;">
+       <li>前往 <a href="https://console.firebase.google.com" target="_blank" style="color: #74b9ff;">Firebase Console</a></li>
+       <li>建立新專案或選擇現有專案</li>
+       <li>啟用 Firestore Database</li>
+       <li><strong>重要：設定 Firestore 安全規則</strong><br>
+         在 Firestore 規則頁面中，將規則改為：<br><code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px; font-size: 0.7rem;"> rules_version = '2';<br>
+          service cloud.firestore {<br>
+          &nbsp;&nbsp;match /databases/{database}/documents {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;match /{document=**} {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if true;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          &nbsp;&nbsp;}<br>
+          } </code></li>
+       <li>在專案設定中找到你的配置資訊</li>
+       <li>將配置資訊替換到程式碼中的 firebaseConfig</li>
+      </ol>
+      <p><strong>目前狀態：</strong><span id="detailStatus">未連接</span></p>
+     </div>
+    </details>
+   </div>
+   <script>
+            // 檢查Firebase連接狀態
+            setTimeout(() => {
+                const statusText = document.getElementById('statusText');
+                const detailStatus = document.getElementById('detailStatus');
+                
+                if (isFirebaseEnabled) {
+                    statusText.innerHTML = '☁️ 已連接雲端資料庫';
+                    statusText.style.color = '#00b894';
+                    detailStatus.textContent = '已連接到 Firebase';
+                    detailStatus.style.color = '#00b894';
+                } else {
+                    statusText.innerHTML = '💾 使用本地存儲 (需要設定Firebase以同步雲端)';
+                    statusText.style.color = '#fdcb6e';
+                    detailStatus.textContent = '未連接 - 請設定 Firebase 配置';
+                    detailStatus.style.color = '#e17055';
+                }
+            }, 1000);
+        </script>
+  </div>
+  <div class="victory-message" id="victoryMessage">
+   <h2>🎉 恭喜完成！</h2>
+   <p id="victoryStats"></p>
+   <div id="nameInput" style="margin: 15px 0;"><input type="text" id="playerName" placeholder="輸入你的名字" maxlength="10" style="padding: 8px; border-radius: 8px; border: 1px solid #ddd; margin-right: 10px;"> <button class="btn btn-primary" onclick="saveScore()">保存成績</button>
+   </div><button class="btn btn-primary" onclick="startNewGame()">再玩一次</button>
+  </div>
+  <div class="leaderboard-modal" id="leaderboardModal">
+   <div class="leaderboard-content">
+    <h2>🏆 排行榜</h2>
+    <div class="leaderboard-list" id="leaderboardList"><!-- 排行榜內容將在這裡顯示 -->
+    </div>
+    <div style="margin-top: 20px;"><button class="btn btn-secondary" onclick="hideLeaderboard()">關閉</button>
+    </div>
+   </div>
+  </div><!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script>
+        // Firebase 配置 - 已連接到你的Firebase專案
+        const firebaseConfig = {
+            apiKey: "AIzaSyABq3cAUGtKLTjFoYXdk0Eo_eT1UFiHT_o",
+            authDomain: "memory-5fbfd.firebaseapp.com",
+            projectId: "memory-5fbfd",
+            storageBucket: "memory-5fbfd.firebasestorage.app",
+            messagingSenderId: "622930729689",
+            appId: "1:622930729689:web:d5857e5a4e36f125633cc8",
+            measurementId: "G-F85MWS33SK"
+        };
+
+        // 初始化Firebase
+        let db = null;
+        let isFirebaseEnabled = false;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            isFirebaseEnabled = true;
+            console.log('Firebase 已成功連接');
+        } catch (error) {
+            console.log('Firebase 連接失敗，使用本地存儲:', error.message);
+            isFirebaseEnabled = false;
+        }
+
+        class MemoryGame {
+            constructor() {
+                this.cards = [];
+                this.flippedCards = [];
+                this.matchedPairs = 0;
+                this.moves = 0;
+                this.startTime = null;
+                this.timerInterval = null;
+                this.isProcessing = false;
+                this.hintsRemaining = 3;
+                this.gameCompleted = false;
+                
+                // 遊戲圖案 - 使用水果表情符號
+                this.symbols = ['🍎', '🍌', '🍊', '🍇', '🍓', '🥝', '🍑', '🍍'];
+                
+                // 音效系統 - 使用Web Audio API創建音效
+                this.audioContext = null;
+                this.initAudio();
+                
+                this.initGame();
+            }
+
+            initAudio() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('音效不支援');
+                }
+            }
+
+            playSound(frequency, duration, type = 'sine') {
+                if (!this.audioContext) return;
+                
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+                
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + duration);
+            }
+
+            playFlipSound() {
+                this.playSound(800, 0.1, 'square');
+            }
+
+            playMatchSound() {
+                // 播放和諧的和弦
+                this.playSound(523, 0.3, 'sine'); // C
+                setTimeout(() => this.playSound(659, 0.3, 'sine'), 50); // E
+                setTimeout(() => this.playSound(784, 0.3, 'sine'), 100); // G
+            }
+
+            playWrongSound() {
+                this.playSound(200, 0.2, 'sawtooth');
+                setTimeout(() => this.playSound(150, 0.2, 'sawtooth'), 100);
+            }
+
+            playVictorySound() {
+                // 勝利音樂
+                const notes = [523, 659, 784, 1047]; // C, E, G, C
+                notes.forEach((note, index) => {
+                    setTimeout(() => this.playSound(note, 0.4, 'sine'), index * 150);
+                });
+            }
+
+            playHintSound() {
+                this.playSound(1000, 0.15, 'triangle');
+                setTimeout(() => this.playSound(1200, 0.15, 'triangle'), 100);
+            }
+
+            initGame() {
+                this.createCards();
+                this.renderBoard();
+                this.startTimer();
+            }
+
+            createCards() {
+                // 創建配對卡片
+                this.cards = [];
+                this.symbols.forEach(symbol => {
+                    this.cards.push({ symbol, id: Math.random(), matched: false });
+                    this.cards.push({ symbol, id: Math.random(), matched: false });
+                });
+                
+                // 洗牌
+                this.shuffleCards();
+            }
+
+            shuffleCards() {
+                for (let i = this.cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+                }
+            }
+
+            renderBoard() {
+                const board = document.getElementById('gameBoard');
+                board.innerHTML = '';
+                
+                this.cards.forEach((card, index) => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'card';
+                    cardElement.dataset.index = index;
+                    cardElement.innerHTML = `
+                        <div class="card-content">${card.symbol}</div>
+                        <div class="card-back">❓</div>
+                    `;
+                    
+                    cardElement.addEventListener('click', () => this.flipCard(index));
+                    board.appendChild(cardElement);
+                });
+            }
+
+            flipCard(index) {
+                if (this.isProcessing || this.flippedCards.length >= 2) return;
+                
+                const card = this.cards[index];
+                const cardElement = document.querySelector(`[data-index="${index}"]`);
+                
+                if (card.matched || this.flippedCards.includes(index)) return;
+                
+                // 播放翻牌音效
+                this.playFlipSound();
+                
+                // 翻牌動畫
+                cardElement.classList.add('flip-animation');
+                setTimeout(() => cardElement.classList.remove('flip-animation'), 600);
+                
+                // 翻牌
+                cardElement.classList.add('flipped');
+                this.flippedCards.push(index);
+                
+                if (this.flippedCards.length === 2) {
+                    this.moves++;
+                    this.updateStats();
+                    this.checkMatch();
+                }
+            }
+
+            checkMatch() {
+                this.isProcessing = true;
+                const [firstIndex, secondIndex] = this.flippedCards;
+                const firstCard = this.cards[firstIndex];
+                const secondCard = this.cards[secondIndex];
+                
+                setTimeout(() => {
+                    if (firstCard.symbol === secondCard.symbol) {
+                        // 配對成功
+                        this.playMatchSound();
+                        
+                        firstCard.matched = true;
+                        secondCard.matched = true;
+                        
+                        const firstElement = document.querySelector(`[data-index="${firstIndex}"]`);
+                        const secondElement = document.querySelector(`[data-index="${secondIndex}"]`);
+                        
+                        firstElement.classList.add('matched', 'match-animation');
+                        secondElement.classList.add('matched', 'match-animation');
+                        
+                        setTimeout(() => {
+                            firstElement.classList.remove('match-animation');
+                            secondElement.classList.remove('match-animation');
+                        }, 800);
+                        
+                        this.matchedPairs++;
+                        this.updateStats();
+                        
+                        if (this.matchedPairs === this.symbols.length) {
+                            this.gameComplete();
+                        }
+                    } else {
+                        // 配對失敗，翻回去
+                        this.playWrongSound();
+                        
+                        const firstElement = document.querySelector(`[data-index="${firstIndex}"]`);
+                        const secondElement = document.querySelector(`[data-index="${secondIndex}"]`);
+                        
+                        firstElement.classList.add('wrong-animation');
+                        secondElement.classList.add('wrong-animation');
+                        
+                        setTimeout(() => {
+                            firstElement.classList.remove('flipped', 'wrong-animation');
+                            secondElement.classList.remove('flipped', 'wrong-animation');
+                        }, 500);
+                    }
+                    
+                    this.flippedCards = [];
+                    this.isProcessing = false;
+                }, 1000);
+            }
+
+            updateStats() {
+                document.getElementById('moves').textContent = this.moves;
+                document.getElementById('matches').textContent = this.matchedPairs;
+                this.updateHintButton();
+            }
+
+            updateHintButton() {
+                const hintBtn = document.getElementById('hintBtn');
+                hintBtn.textContent = `💡 提示 (${this.hintsRemaining})`;
+                if (this.hintsRemaining <= 0) {
+                    hintBtn.disabled = true;
+                } else {
+                    hintBtn.disabled = false;
+                }
+            }
+
+            useHint() {
+                if (this.hintsRemaining <= 0 || this.isProcessing) return;
+                
+                // 找到未配對的卡片
+                const unmatchedCards = [];
+                this.cards.forEach((card, index) => {
+                    if (!card.matched && !this.flippedCards.includes(index)) {
+                        unmatchedCards.push({ card, index });
+                    }
+                });
+                
+                if (unmatchedCards.length < 2) return;
+                
+                // 找到一對相同的卡片
+                for (let i = 0; i < unmatchedCards.length; i++) {
+                    for (let j = i + 1; j < unmatchedCards.length; j++) {
+                        if (unmatchedCards[i].card.symbol === unmatchedCards[j].card.symbol) {
+                            // 播放提示音效
+                            this.playHintSound();
+                            
+                            // 顯示提示
+                            const firstElement = document.querySelector(`[data-index="${unmatchedCards[i].index}"]`);
+                            const secondElement = document.querySelector(`[data-index="${unmatchedCards[j].index}"]`);
+                            
+                            firstElement.classList.add('hint');
+                            secondElement.classList.add('hint');
+                            
+                            // 2秒後移除提示效果
+                            setTimeout(() => {
+                                firstElement.classList.remove('hint');
+                                secondElement.classList.remove('hint');
+                            }, 2000);
+                            
+                            this.hintsRemaining--;
+                            this.updateHintButton();
+                            return;
+                        }
+                    }
+                }
+            }
+
+            startTimer() {
+                this.startTime = Date.now();
+                this.timerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                    const seconds = (elapsed % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+                }, 1000);
+            }
+
+            gameComplete() {
+                clearInterval(this.timerInterval);
+                this.gameCompleted = true;
+                const totalTime = Math.floor((Date.now() - this.startTime) / 1000);
+                const minutes = Math.floor(totalTime / 60);
+                const seconds = totalTime % 60;
+                
+                // 播放勝利音效
+                this.playVictorySound();
+                
+                // 計算分數 (時間越短、翻牌次數越少分數越高)
+                const timeScore = Math.max(1000 - totalTime * 2, 100);
+                const moveScore = Math.max(1000 - this.moves * 10, 100);
+                const hintPenalty = (3 - this.hintsRemaining) * 50;
+                this.finalScore = Math.round(timeScore + moveScore - hintPenalty);
+                
+                document.getElementById('victoryStats').innerHTML = 
+                    `你用了 ${this.moves} 次翻牌，花費時間 ${minutes}:${seconds.toString().padStart(2, '0')}<br>
+                     <strong>得分：${this.finalScore} 分</strong>`;
+                
+                const victoryMessage = document.getElementById('victoryMessage');
+                victoryMessage.style.display = 'block';
+                victoryMessage.classList.add('victory-celebration');
+                
+                setTimeout(() => {
+                    victoryMessage.classList.remove('victory-celebration');
+                }, 2000);
+            }
+
+            reset() {
+                clearInterval(this.timerInterval);
+                this.flippedCards = [];
+                this.matchedPairs = 0;
+                this.moves = 0;
+                this.isProcessing = false;
+                this.hintsRemaining = 3;
+                this.gameCompleted = false;
+                document.getElementById('victoryMessage').style.display = 'none';
+                this.updateStats();
+                this.initGame();
+            }
+        }
+
+        let game = new MemoryGame();
+
+        function startNewGame() {
+            game = new MemoryGame();
+            document.getElementById('victoryMessage').style.display = 'none';
+        }
+
+        function resetGame() {
+            game.reset();
+        }
+
+        function useHint() {
+            game.useHint();
+        }
+
+        async function saveScore() {
+            const playerName = document.getElementById('playerName').value.trim();
+            if (!playerName) {
+                showMessage('請輸入你的名字！', 'error');
+                return;
+            }
+
+            if (!game.gameCompleted) {
+                showMessage('請先完成遊戲！', 'error');
+                return;
+            }
+
+            // 顯示保存中狀態
+            const saveBtn = document.querySelector('#nameInput button');
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = '保存中...';
+            saveBtn.disabled = true;
+
+            try {
+                const gameTime = Math.floor((Date.now() - game.startTime) / 1000);
+                const newScore = {
+                    name: playerName,
+                    score: game.finalScore,
+                    moves: game.moves,
+                    time: gameTime,
+                    date: new Date().toLocaleDateString('zh-TW'),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                // 強制使用雲端存儲
+                if (!isFirebaseEnabled || !db) {
+                    throw new Error('Firebase 未正確初始化，請檢查配置設定');
+                }
+
+                // 測試Firebase連接
+                await db.collection('test').doc('connection').set({ test: true });
+                await db.collection('test').doc('connection').delete();
+
+                // 保存到Firebase
+                await db.collection('leaderboard').add(newScore);
+                showMessage('✅ 成績已成功保存到雲端排行榜！', 'success');
+                document.getElementById('nameInput').style.display = 'none';
+                
+            } catch (error) {
+                console.error('雲端保存失敗:', error);
+                
+                // 提供詳細的錯誤信息
+                let errorMessage = '雲端保存失敗：';
+                if (error.code === 'permission-denied') {
+                    errorMessage += 'Firebase 權限不足，請檢查 Firestore 安全規則';
+                } else if (error.code === 'unavailable') {
+                    errorMessage += '網路連接問題，請檢查網路狀態';
+                } else if (error.message.includes('Firebase')) {
+                    errorMessage += 'Firebase 配置錯誤，請檢查設定';
+                } else {
+                    errorMessage += error.message || '未知錯誤';
+                }
+                
+                showMessage(errorMessage, 'error');
+            } finally {
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+            }
+        }
+
+        async function showLeaderboard() {
+            const leaderboardList = document.getElementById('leaderboardList');
+            
+            // 顯示載入中狀態
+            leaderboardList.innerHTML = '<div class="empty-leaderboard">載入中...</div>';
+            document.getElementById('leaderboardModal').style.display = 'flex';
+
+            try {
+                let leaderboard = [];
+
+                if (isFirebaseEnabled) {
+                    // 從Firebase獲取排行榜
+                    const snapshot = await db.collection('leaderboard')
+                        .orderBy('score', 'desc')
+                        .limit(10)
+                        .get();
+                    
+                    leaderboard = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                } else {
+                    // 備用：從本地存儲獲取
+                    leaderboard = JSON.parse(localStorage.getItem('memoryGameLeaderboard') || '[]');
+                }
+                
+                if (leaderboard.length === 0) {
+                    leaderboardList.innerHTML = '<div class="empty-leaderboard">還沒有任何記錄<br>快來創造第一個記錄吧！</div>';
+                } else {
+                    let html = '';
+                    leaderboard.forEach((score, index) => {
+                        const rank = index + 1;
+                        const minutes = Math.floor(score.time / 60);
+                        const seconds = score.time % 60;
+                        const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        
+                        const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+                        const itemClass = rank <= 3 ? 'leaderboard-item top-3' : 'leaderboard-item';
+                        
+                        html += `
+                            <div class="${itemClass}">
+                                <div class="leaderboard-rank">${rankEmoji}</div>
+                                <div class="leaderboard-name">${score.name}</div>
+                                <div class="leaderboard-score">
+                                    ${score.score}分<br>
+                                    <small>${score.moves}步 | ${timeStr} | ${score.date}</small>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    leaderboardList.innerHTML = html;
+                }
+            } catch (error) {
+                console.error('載入排行榜失敗:', error);
+                leaderboardList.innerHTML = '<div class="empty-leaderboard">載入失敗<br>請檢查網路連接後重試</div>';
+            }
+        }
+
+        function hideLeaderboard() {
+            document.getElementById('leaderboardModal').style.display = 'none';
+        }
+
+        async function clearLeaderboard() {
+            if (!confirm('確定要清空所有排行榜記錄嗎？此操作無法復原！')) {
+                return;
+            }
+
+            try {
+                if (isFirebaseEnabled) {
+                    // 清空Firebase中的排行榜
+                    const snapshot = await db.collection('leaderboard').get();
+                    const batch = db.batch();
+                    
+                    snapshot.docs.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+                    
+                    await batch.commit();
+                    showMessage('雲端排行榜已清空！', 'success');
+                } else {
+                    // 清空本地存儲
+                    localStorage.removeItem('memoryGameLeaderboard');
+                    showMessage('本地排行榜已清空！', 'success');
+                }
+                
+                showLeaderboard(); // 重新顯示空的排行榜
+            } catch (error) {
+                console.error('清空排行榜失敗:', error);
+                showMessage('清空失敗，請稍後再試！', 'error');
+            }
+        }
+
+        // 顯示訊息的輔助函數
+        function showMessage(message, type = 'info') {
+            // 創建訊息元素
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = message;
+            messageDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: bold;
+                z-index: 3000;
+                animation: slideIn 0.3s ease-out;
+                max-width: 300px;
+                word-wrap: break-word;
+            `;
+            
+            // 根據類型設置顏色
+            switch (type) {
+                case 'success':
+                    messageDiv.style.background = 'linear-gradient(145deg, #00b894, #00a085)';
+                    break;
+                case 'error':
+                    messageDiv.style.background = 'linear-gradient(145deg, #e17055, #d63031)';
+                    break;
+                default:
+                    messageDiv.style.background = 'linear-gradient(145deg, #74b9ff, #0984e3)';
+            }
+            
+            // 添加動畫樣式
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(messageDiv);
+            
+            // 3秒後自動移除
+            setTimeout(() => {
+                messageDiv.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                    if (style.parentNode) {
+                        style.parentNode.removeChild(style);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98fe1fbd03bea9cb',t:'MTc2MDY4NjU3Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
